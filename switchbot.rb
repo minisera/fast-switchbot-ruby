@@ -9,15 +9,32 @@ class Command
     TOKEN = ENV["SWITCHBOT_TOKEN"]
     SECRET = ENV["SWITCHBOT_SECRET"]
 
-    def getDevices
+    def fetch_devices
         client = HTTPClient.new
         url = "#{API_HOST}/v1.1/devices"
-        response = client.get(url, header: generateHeader)
-        puts JSON.parse(response.body)
+        filename = "device-list.json"            
+
+        # 空ファイルもしくは更新日時から一日経過した場合、APIをリクエスト投げる
+        # APIレスポンスをJsonファイルに書き込む
+        if File.empty?(filename) || File.mtime(filename) + (60 * 60 * 24) < Time.now()
+        
+            begin
+                response = client.get(url, header: generate_header)
+            rescue => e
+                raise e
+            end
+    
+            File.open(filename, "w") do |text|
+                text.puts(response.body)
+            end
+        end
+
+        file = File.open(filename, "r")
+        puts file.read
     end
 
     private 
-        def generateHeader
+        def generate_header
             t = (Time.now.to_f * 1000).to_i
             nonce = SecureRandom.uuid
             payload = "#{TOKEN}#{t}#{nonce}"
@@ -28,4 +45,4 @@ class Command
 end
 
 com = Command.new()
-com.getDevices
+com.fetch_devices
